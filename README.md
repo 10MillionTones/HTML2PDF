@@ -1,13 +1,16 @@
 # HTML2PDF
 
-批量把本地 HTML 文件转成 PDF 的 Windows 小工具。一个 35 KB 的 exe，免安装，拖进去点一下就行。
+批量把本地 HTML 文件转成 PDF 的 Windows 小工具。一个 50 KB 的 exe，免安装，拖进去点一下就行。
 
+**中文** | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%207%20%7C%2010%20%7C%2011-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET%20Framework-4.0%2B-purple)
-![Size](https://img.shields.io/badge/size-35%20KB-brightgreen)
+![Size](https://img.shields.io/badge/size-50%20KB-brightgreen)
 
-![界面截图](docs/screenshot.png)
+![界面截图](docs/screenshot-zh.png)
 
 ## 它解决什么问题
 
@@ -19,7 +22,8 @@
 
 - 拖入文件夹或单个文件，递归扫描 `.html` / `.htm`
 - 输出矢量 PDF，字体内嵌，文字可复制、可搜索
-- 纸张：跟随原文件、A4、A3、Letter、Legal；方向横竖；页边距三档
+- 界面支持中文 / English / 日本語 / 한국어 实时切换，选择会记住
+- 纸张：跟随原文件、A4、A3、A5、Letter、Legal；方向横竖；页边距六档
 - 并发 1~4 可调，默认 1
 - 可选「跳过已存在的 PDF」「递归子目录」
 - 中文路径、同名文件自动加 `(2)` 序号
@@ -50,16 +54,16 @@
 ### 3. 设置保存位置
 
 - **存到源文件旁边**：默认，每个 PDF 和它的 HTML 放在一起
-- **指定目录**：所有 PDF 统一输出到一个文件夹，保持原有的子目录结构
+- **指定目录**：所有 PDF 统一输出到一个文件夹
 
 ### 4. 页面设置
 
 | 选项 | 说明 |
 |---|---|
 | 纸张 | 默认 A4。浏览器的无头模式默认是 Letter，所以这个选项有用 |
-| 方向 | 纵向 / 横向 |
-| 页边距 | 无 / 窄 / 标准 / 宽 |
-| 跟随原文件 | 不注入任何样式，完全按 HTML 自己的 `@page` 和 CSS 输出 |
+| 方向 | 自动 / 纵向 / 横向 |
+| 页边距 | 跟随原文件、0、5、10、15、20、25 mm |
+| 跳过已存在的 PDF | 默认开，关掉则覆盖重转 |
 
 选了具体纸张时，程序会在 HTML 同目录生成一个临时副本，在里面注入 `@page` 规则，转完立即删除。这样相对路径的图片、样式表还能正常加载。
 
@@ -69,11 +73,14 @@
 |---|---|---|
 | 并发数 | 1 | 同时开几个浏览器实例。机器内存紧就保持 1 |
 | 渲染等待 | 0 毫秒 | 页面内容靠 JS 异步生成时才需要，比如填 2000 |
-| 跳过已存在的 PDF | 开 | 关掉则覆盖重转 |
 
 ### 6. 开始转换
 
 点「开始转换」，列表里每个文件的状态会实时变化，底部进度条和日志同步更新。随时可以点「停止」，已完成的文件保留。
+
+### 7. 切换语言
+
+窗口右上角的下拉框可以随时在中英日韩之间切换，界面文案、列头、日志、弹窗一起变，下次打开还是这个语言。
 
 ## 常见问题
 
@@ -126,10 +133,13 @@ chrome.exe --headless --disable-gpu --hide-scrollbars
 ## 项目结构
 
 ```
-HTML2PDF.cs   主程序，单文件 WinForms，约 1000 行
-docs/         截图等资源
-LICENSE       MIT 许可证
-README.md     本文件
+HTML2PDF.cs      主程序，单文件 WinForms
+docs/            四语种界面截图
+LICENSE          MIT 许可证
+README.md        中文说明
+README.en.md     English
+README.ja.md     日本語
+README.ko.md     한국어
 ```
 
 ## 自己编译
@@ -141,6 +151,13 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /platform
   /out:HTML2PDF.exe /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll `
   HTML2PDF.cs
 ```
+
+## 版本记录
+
+| 版本 | 内容 |
+|---|---|
+| 1.1.0 | 界面支持中文 / 英文 / 日文 / 韩文切换；标题栏和界面显示版本号 |
+| 1.0.0 | 首个版本：批量转换、页面设置、并发控制、日志 |
 
 ## 许可证
 
