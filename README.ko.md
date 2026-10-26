@@ -1,14 +1,14 @@
 # HTML2PDF
 
-로컬 HTML 파일을 한꺼번에 PDF로 바꿔 주는 Windows 도구입니다. 50 KB짜리 exe 하나, 설치 없이 파일을 넣고 버튼만 누르면 됩니다.
+로컬 HTML 파일을 한꺼번에 PDF로 바꿔 주는 Windows 도구입니다. 53 KB짜리 exe 하나, 설치 없이 파일을 넣고 버튼만 누르면 됩니다.
 
 [中文](README.md) | [English](README.en.md) | [日本語](README.ja.md) | **한국어**
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%207%20%7C%2010%20%7C%2011-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET%20Framework-4.0%2B-purple)
-![Size](https://img.shields.io/badge/size-50%20KB-brightgreen)
+![Size](https://img.shields.io/badge/size-53%20KB-brightgreen)
 
 ![화면 캡처](docs/screenshot-ko.png)
 
@@ -88,6 +88,10 @@
 
 내용을 비동기 요청 뒤에 그리는 페이지일 가능성이 큽니다. "렌더링 대기"를 2000~3000 밀리초로 올려 다시 시도해 보세요.
 
+**"브라우저가 PDF를 만들지 못했습니다"라고 나옵니다**
+
+대괄호 안은 브라우저가 직접 출력한 오류입니다. 흔한 원인은 세 가지입니다. 페이지 스크립트가 인쇄를 막거나, 저장 폴더가 쓰기 불가이거나, 보안 프로그램이 차단한 경우입니다. 바탕 화면 같은 다른 폴더에 저장해 다시 시도해 보세요. 로그에 `Access is denied`가 보이면 권한 문제, `headless` 관련 문구가 보이면 브라우저 버전 문제입니다.
+
 **로그인이 필요한 페이지는 변환되지 않습니다**
 
 헤드리스 브라우저는 쿠키가 없는 새 환경이라 로그인 상태를 물려받지 못합니다. 이런 페이지는 브라우저에서 직접 저장해야 합니다.
@@ -156,6 +160,7 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /platform
 
 | 버전 | 내용 |
 |---|---|
+| 1.1.1 | 실패 시 구체적인 원인 표시(브라우저 로그, 쓰기 불가 폴더, 경로 길이). 임시 파일에 먼저 출력한 뒤 이동하고, 실패하면 최소 옵션으로 한 번 재시도 |
 | 1.1.0 | 화면을 중국어·영어·일본어·한국어로 지원. 제목 표시줄에 버전 번호 표시 |
 | 1.0.0 | 첫 버전: 일괄 변환, 페이지 설정, 동시 작업, 로그 |
 

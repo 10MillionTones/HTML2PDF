@@ -1,14 +1,14 @@
 # HTML2PDF
 
-ローカルの HTML ファイルをまとめて PDF に変換する Windows 用ツールです。50 KB の exe ひとつ、インストール不要、放り込んでボタンを押すだけ。
+ローカルの HTML ファイルをまとめて PDF に変換する Windows 用ツールです。53 KB の exe ひとつ、インストール不要、放り込んでボタンを押すだけ。
 
 [中文](README.md) | [English](README.en.md) | **日本語** | [한국어](README.ko.md)
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%207%20%7C%2010%20%7C%2011-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET%20Framework-4.0%2B-purple)
-![Size](https://img.shields.io/badge/size-50%20KB-brightgreen)
+![Size](https://img.shields.io/badge/size-53%20KB-brightgreen)
 
 ![画面写真](docs/screenshot-ja.png)
 
@@ -88,6 +88,10 @@
 
 内容を非同期のリクエスト後に描画しているページだと思われます。「レンダリング待ち」を 2000〜3000 ミリ秒にして試してください。
 
+**「ブラウザが PDF を生成しませんでした」と表示される**
+
+角括弧の中はブラウザ自身が出力したエラーです。よくある原因は 3 つ：ページのスクリプトが印刷を妨げている、保存先フォルダが書き込み不可、セキュリティソフトに遮断された。デスクトップなど別のフォルダに保存し直して試してください。ログに `Access is denied` が出れば権限の問題、`headless` に関わる文言が出ればブラウザのバージョン問題です。
+
 **ログインが必要なページが変換できない**
 
 ヘッドレスブラウザは Cookie を持たない新しい環境で動くため、ログイン状態を引き継げません。そうしたページはブラウザから手動で保存してください。
@@ -156,6 +160,7 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /platform
 
 | バージョン | 内容 |
 |---|---|
+| 1.1.1 | 失敗時に具体的な原因を表示（ブラウザのログ、書き込み不可のフォルダ、パスの長さ）。一旦一時ファイルに出力してから移動し、失敗時は最小構成の引数で 1 回だけ再試行 |
 | 1.1.0 | 画面を中国語・英語・日本語・韓国語に対応。タイトルバーにバージョン番号を表示 |
 | 1.0.0 | 初版：一括変換、ページ設定、同時実行、ログ |
 

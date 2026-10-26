@@ -19,15 +19,15 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("HTML2PDF")]
 [assembly: AssemblyCompany("10MillionTones")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 10MillionTones")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
 
 namespace Html2Pdf
 {
     // 版本号与界面语言。改版本时同时改 AssemblyVersion / AssemblyFileVersion / README。
     internal static class L
     {
-        public const string Version = "1.1.0";
+        public const string Version = "1.1.1";
         public const string RegPath = @"Software\10MillionTones\HTML2PDF";
 
         // 0 中文，1 English，2 日本語，3 한국어
@@ -1032,9 +1032,17 @@ namespace Html2Pdf
         {
             error = null;
             string tempHtml = null;
-            string tempPdf = dst + ".h2p.pdf";
+            // 先写到临时目录，成功后再搬到目标位置。这样目标目录的权限问题不会表现为“浏览器没生成 PDF”
+            string tempPdf = Path.Combine(_tempRoot, "print-" + Guid.NewGuid().ToString("N") + ".pdf");
             try
             {
+                if (dst.Length > 250)
+                {
+                    error = L.T("输出路径太长，请换一个短一点的保存目录：", "The output path is too long, choose a shorter folder: ",
+                        "出力パスが長すぎます。短いフォルダを選んでください：", "출력 경로가 너무 깁니다. 더 짧은 폴더를 선택하세요: ") + dst;
+                    return false;
+                }
+
                 string target = src;
                 string css = BuildPageCss();
                 if (css.Length > 0)
@@ -1051,56 +1059,48 @@ namespace Html2Pdf
                 }
 
                 string dir = Path.GetDirectoryName(dst);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                if (File.Exists(tempPdf))
+                if (!string.IsNullOrEmpty(dir))
                 {
-                    try { File.Delete(tempPdf); } catch { }
-                }
-
-                StringBuilder args = new StringBuilder();
-                args.Append("--headless --disable-gpu --hide-scrollbars --disable-extensions --no-first-run ");
-                args.Append("--no-default-browser-check --allow-file-access-from-files ");
-                args.Append("--disable-background-networking --disable-sync --disable-component-update ");
-                args.Append("--no-pings --disable-breakpad --disable-crash-reporter ");
-                args.Append("--user-data-dir=").Append(Quote(profile)).Append(' ');
-                if (_numWait.Value > 0) args.Append("--virtual-time-budget=").Append((int)_numWait.Value).Append(' ');
-                args.Append("--no-pdf-header-footer --print-to-pdf-no-header ");
-                args.Append("--print-to-pdf=").Append(Quote(tempPdf)).Append(' ');
-                args.Append(Quote(new Uri(target).AbsoluteUri));
-
-                ProcessStartInfo psi = new ProcessStartInfo(_txtBrowser.Text.Trim(), args.ToString());
-                psi.UseShellExecute = false;
-                psi.CreateNoWindow = true;
-                psi.WorkingDirectory = Path.GetDirectoryName(target);
-
-                using (Process p = Process.Start(psi))
-                {
-                    if (!p.WaitForExit(180000))
+                    try { Directory.CreateDirectory(dir); }
+                    catch { }
+                    if (!CanWrite(dir))
                     {
-                        try { p.Kill(); } catch { }
-                        error = L.T("超时（180 秒），页面可能卡住了", "Timed out (180 s), the page may be stuck",
-                            "タイムアウト（180 秒）。ページが固まっている可能性があります",
-                            "시간 초과(180초). 페이지가 멈췄을 수 있습니다");
-                        return false;
-                    }
-                    if (p.ExitCode != 0)
-                    {
-                        error = L.T("浏览器退出码 ", "Browser exit code ", "ブラウザ終了コード ", "브라우저 종료 코드 ") + p.ExitCode;
+                        error = L.T("目标目录不可写，请换一个保存位置或检查权限：", "The output folder is not writable, choose another location or check permissions: ",
+                            "出力先フォルダに書き込めません。保存先を変えるか権限を確認してください：",
+                            "출력 폴더에 쓸 수 없습니다. 저장 위치를 바꾸거나 권한을 확인하세요: ") + dir;
                         return false;
                     }
                 }
 
-                if (!File.Exists(tempPdf) || new FileInfo(tempPdf).Length == 0)
+                int exitCode;
+                string log;
+                bool timeout;
+                if (!RunPrint(target, profile, tempPdf, false, out exitCode, out log, out timeout))
                 {
-                    error = L.T("没有生成 PDF", "No PDF was produced", "PDF が生成されませんでした", "PDF가 생성되지 않았습니다");
-                    return false;
+                    // 第一次没产出：换最小参数、全新配置目录再试一次
+                    int exit2;
+                    string log2;
+                    bool timeout2;
+                    if (!RunPrint(target, profile + "-retry", tempPdf, true, out exit2, out log2, out timeout2))
+                    {
+                        error = BuildFailure(timeout2, exit2, log2, log);
+                        return false;
+                    }
                 }
 
                 if (File.Exists(dst))
                 {
                     try { File.Delete(dst); } catch { }
                 }
-                File.Move(tempPdf, dst);
+                try
+                {
+                    File.Move(tempPdf, dst);
+                }
+                catch (IOException)
+                {
+                    File.Copy(tempPdf, dst, true);
+                    try { File.Delete(tempPdf); } catch { }
+                }
                 return true;
             }
             catch (Exception ex)
@@ -1113,6 +1113,112 @@ namespace Html2Pdf
                 if (tempHtml != null) { try { File.Delete(tempHtml); } catch { } }
                 if (File.Exists(tempPdf)) { try { File.Delete(tempPdf); } catch { } }
             }
+        }
+
+        private bool RunPrint(string target, string profile, string tempPdf, bool minimal,
+            out int exitCode, out string log, out bool timeout)
+        {
+            exitCode = 0;
+            timeout = false;
+            log = "";
+            try { Directory.CreateDirectory(profile); }
+            catch { }
+            try { if (File.Exists(tempPdf)) File.Delete(tempPdf); }
+            catch { }
+
+            StringBuilder args = new StringBuilder();
+            args.Append("--headless --disable-gpu --hide-scrollbars ");
+            if (!minimal)
+            {
+                args.Append("--disable-extensions --no-first-run --no-default-browser-check ");
+                args.Append("--allow-file-access-from-files --disable-background-networking --disable-sync ");
+                args.Append("--disable-component-update --no-pings --disable-breakpad --disable-crash-reporter ");
+            }
+            args.Append("--user-data-dir=").Append(Quote(profile)).Append(' ');
+            if (_numWait.Value > 0) args.Append("--virtual-time-budget=").Append((int)_numWait.Value).Append(' ');
+            if (!minimal) args.Append("--no-pdf-header-footer --print-to-pdf-no-header ");
+            args.Append("--print-to-pdf=").Append(Quote(tempPdf)).Append(' ');
+            args.Append(Quote(new Uri(target).AbsoluteUri));
+
+            ProcessStartInfo psi = new ProcessStartInfo(_txtBrowser.Text.Trim(), args.ToString());
+            psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
+            psi.WorkingDirectory = Path.GetDirectoryName(target);
+            psi.RedirectStandardError = true;
+            psi.RedirectStandardOutput = true;
+
+            StringBuilder buf = new StringBuilder();
+            using (Process p = Process.Start(psi))
+            {
+                p.ErrorDataReceived += delegate(object s, DataReceivedEventArgs e)
+                {
+                    if (e.Data == null) return;
+                    lock (buf) { if (buf.Length < 4000) buf.AppendLine(e.Data); }
+                };
+                p.BeginErrorReadLine();
+                p.BeginOutputReadLine();
+
+                if (!p.WaitForExit(180000))
+                {
+                    try { p.Kill(); } catch { }
+                    timeout = true;
+                    return false;
+                }
+                exitCode = p.ExitCode;
+            }
+
+            log = Tail(buf.ToString(), 500);
+            try
+            {
+                return File.Exists(tempPdf) && new FileInfo(tempPdf).Length > 0;
+            }
+            catch { return false; }
+        }
+
+        private string BuildFailure(bool timeout, int exitCode, string log, string firstLog)
+        {
+            if (timeout)
+            {
+                return L.T("超时（180 秒），页面可能卡住了", "Timed out (180 s), the page may be stuck",
+                    "タイムアウト（180 秒）。ページが固まっている可能性があります",
+                    "시간 초과(180초). 페이지가 멈췄을 수 있습니다");
+            }
+            StringBuilder sb = new StringBuilder();
+            if (exitCode != 0)
+            {
+                sb.Append(L.T("浏览器退出码 ", "Browser exit code ", "ブラウザ終了コード ", "브라우저 종료 코드 ")).Append(exitCode).Append("。 ");
+            }
+            else
+            {
+                sb.Append(L.T("浏览器没有生成 PDF。可能的原因：页面脚本阻止了打印、被安全软件拦截、浏览器版本不支持无头打印。",
+                    "The browser did not produce a PDF. Possible causes: the page script blocks printing, security software blocked it, or the browser build does not support headless printing.",
+                    "ブラウザが PDF を生成しませんでした。原因の候補：ページのスクリプトが印刷を妨げている、セキュリティソフトに遮断された、ブラウザがヘッドレス印刷に対応していない。",
+                    "브라우저가 PDF를 만들지 못했습니다. 원인 후보: 페이지 스크립트가 인쇄를 막음, 보안 프로그램이 차단, 브라우저가 헤드리스 인쇄를 지원하지 않음。"));
+            }
+            string extra = log.Length > 0 ? log : firstLog;
+            if (extra.Length > 0) sb.Append(" [").Append(extra).Append(']');
+            return sb.ToString();
+        }
+
+        private static string Tail(string text, int max)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            text = text.Replace("\r", " ").Replace("\n", " | ").Trim();
+            while (text.Contains(" |  | ")) text = text.Replace(" |  | ", " | ");
+            if (text.Length > max) text = text.Substring(text.Length - max);
+            return text;
+        }
+
+        private static bool CanWrite(string dir)
+        {
+            try
+            {
+                string probe = Path.Combine(dir, ".h2p_probe_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+                using (FileStream fs = new FileStream(probe, FileMode.CreateNew, FileAccess.Write)) { }
+                File.Delete(probe);
+                return true;
+            }
+            catch { return false; }
         }
 
         private static string Quote(string s)
