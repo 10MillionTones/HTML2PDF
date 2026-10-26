@@ -1,14 +1,14 @@
 # HTML2PDF
 
-批量把本地 HTML 文件转成 PDF 的 Windows 小工具。一个 53 KB 的 exe，免安装，拖进去点一下就行。
+批量把本地 HTML 文件转成 PDF 的 Windows 小工具。一个 55 KB 的 exe，免安装，拖进去点一下就行。
 
 **中文** | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-![Version](https://img.shields.io/badge/version-1.1.1-blue)
+![Version](https://img.shields.io/badge/version-1.1.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%207%20%7C%2010%20%7C%2011-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET%20Framework-4.0%2B-purple)
-![Size](https://img.shields.io/badge/size-53%20KB-brightgreen)
+![Size](https://img.shields.io/badge/size-55%20KB-brightgreen)
 
 ![界面截图](docs/screenshot-zh.png)
 
@@ -92,6 +92,8 @@
 
 方括号里是浏览器自己输出的错误。常见原因有三种：页面脚本阻止了打印、目标文件夹只读、被安全软件拦截。换一个保存目录（比如桌面）再试一次；日志里出现 `Access is denied` 就是权限问题，出现 `headless` 相关字样就是浏览器版本问题。
 
+排不动的话，exe 旁边会自动生成 `HTML2PDF.log`，里面记着这次运行的完整命令行、浏览器版本、退出码和耗时，直接把这个文件发出来就能定位。
+
 **需要登录才能看的页面转不了**
 
 无头浏览器是一个全新的、没有 Cookie 的身份，拿不到你的登录态。这类页面只能在浏览器里手动另存。
@@ -160,6 +162,7 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /platform
 
 | 版本 | 内容 |
 |---|---|
+| 1.1.2 | 新增 HTML2PDF.log 排障日志，记录完整命令行、浏览器退出码、耗时和浏览器原始错误；浏览器 1 秒内异常退出会单独提示 |
 | 1.1.1 | 转换失败时给出具体原因（浏览器日志、目录不可写、路径过长）；先输出到临时文件再移动，避免目标目录权限问题；失败自动换最小参数重试一次 |
 | 1.1.0 | 界面支持中文 / 英文 / 日文 / 韩文切换；标题栏和界面显示版本号 |
 | 1.0.0 | 首个版本：批量转换、页面设置、并发控制、日志 |

@@ -1,14 +1,14 @@
 # HTML2PDF
 
-A small Windows tool that batch-converts local HTML files to PDF. One 53 KB exe, no installation, drop files in and click a button.
+A small Windows tool that batch-converts local HTML files to PDF. One 55 KB exe, no installation, drop files in and click a button.
 
 [中文](README.md) | **English** | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-![Version](https://img.shields.io/badge/version-1.1.1-blue)
+![Version](https://img.shields.io/badge/version-1.1.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%207%20%7C%2010%20%7C%2011-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET%20Framework-4.0%2B-purple)
-![Size](https://img.shields.io/badge/size-53%20KB-brightgreen)
+![Size](https://img.shields.io/badge/size-55%20KB-brightgreen)
 
 ![Screenshot](docs/screenshot-en.png)
 
@@ -92,6 +92,8 @@ The page probably renders its content after an async request. Set "Render delay"
 
 The text in brackets is what the browser itself printed. Three common causes: a page script blocks printing, the output folder is read-only, or security software intercepted the process. Try saving to another folder such as the Desktop. `Access is denied` in the log means a permission problem; anything mentioning `headless` means a browser version problem.
 
+If that does not help, `HTML2PDF.log` appears next to the exe after each run, with the command line, browser version, exit code and timing. Send that file over and the cause is usually obvious.
+
 **Pages that require a login don't convert**
 
 The headless browser starts with a fresh profile and no cookies, so it doesn't inherit your session. Save those pages manually from your browser.
@@ -160,6 +162,7 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /platform
 
 | Version | Changes |
 |---|---|
+| 1.1.2 | Adds HTML2PDF.log next to the exe with the full command line, browser exit code, timing and the browser's own error output; a browser that quits within a second gets its own message |
 | 1.1.1 | Clear failure reasons (browser log, read-only output folder, over-long path); PDFs are written to a temp file first and moved into place; one automatic retry with minimal flags |
 | 1.1.0 | UI in Chinese / English / Japanese / Korean; version number shown in the title bar |
 | 1.0.0 | First release: batch conversion, page setup, concurrency, log |

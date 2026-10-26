@@ -19,15 +19,15 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("HTML2PDF")]
 [assembly: AssemblyCompany("10MillionTones")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 10MillionTones")]
-[assembly: AssemblyVersion("1.1.1.0")]
-[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyVersion("1.1.2.0")]
+[assembly: AssemblyFileVersion("1.1.2.0")]
 
 namespace Html2Pdf
 {
     // 版本号与界面语言。改版本时同时改 AssemblyVersion / AssemblyFileVersion / README。
     internal static class L
     {
-        public const string Version = "1.1.1";
+        public const string Version = "1.1.2";
         public const string RegPath = @"Software\10MillionTones\HTML2PDF";
 
         // 0 中文，1 English，2 日本語，3 한국어
@@ -81,13 +81,36 @@ namespace Html2Pdf
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Diag.Write("启动 v" + L.Version + "  OS=" + Environment.OSVersion.VersionString + "  CLR=" + Environment.Version + "  TEMP=" + Path.GetTempPath());
             Application.ThreadException += delegate(object sender, ThreadExceptionEventArgs e)
             {
+                Diag.Write("未处理异常：" + e.Exception);
                 MessageBox.Show(e.Exception.Message,
                     L.T("出错了", "Error", "エラー", "오류"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
             Application.Run(new MainForm(args));
+        }
+    }
+
+    // 排障日志，写在 exe 旁边，超过 512 KB 自动重开
+    internal static class Diag
+    {
+        private static readonly object Gate = new object();
+        public static readonly string FilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HTML2PDF.log");
+
+        public static void Write(string line)
+        {
+            try
+            {
+                lock (Gate)
+                {
+                    FileInfo fi = new FileInfo(FilePath);
+                    if (fi.Exists && fi.Length > 512 * 1024) fi.Delete();
+                    File.AppendAllText(FilePath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "  " + line + Environment.NewLine, Encoding.UTF8);
+                }
+            }
+            catch { }
         }
     }
 
@@ -962,6 +985,10 @@ namespace Html2Pdf
                 _jobs.Count + " 件の変換を開始。同時実行 " + _workers + "、エンジン：",
                 _jobs.Count + "개 파일 변환 시작, 동시 작업 " + _workers + ", 엔진: ") + Path.GetFileName(browser));
 
+            Diag.Write("批次开始：任务 " + _jobs.Count + "，并发 " + _workers + "，引擎=" + browser + "（" + FileVersion(browser) + "）"
+                + "，临时目录=" + _tempRoot + "，纸张=" + PaperNames()[_cboPaper.SelectedIndex] + "，方向=" + OrientNames()[_cboOrient.SelectedIndex]
+                + "，边距=" + MarginNames()[_cboMargin.SelectedIndex] + "，渲染等待=" + (int)_numWait.Value);
+
             for (int i = 0; i < _workers; i++)
             {
                 Thread t = new Thread(Worker);
@@ -1075,15 +1102,18 @@ namespace Html2Pdf
                 int exitCode;
                 string log;
                 bool timeout;
-                if (!RunPrint(target, profile, tempPdf, false, out exitCode, out log, out timeout))
+                long elapsed;
+                if (!RunPrint(target, profile, tempPdf, false, "first", out exitCode, out log, out timeout, out elapsed))
                 {
                     // 第一次没产出：换最小参数、全新配置目录再试一次
                     int exit2;
                     string log2;
                     bool timeout2;
-                    if (!RunPrint(target, profile + "-retry", tempPdf, true, out exit2, out log2, out timeout2))
+                    long elapsed2;
+                    if (!RunPrint(target, profile + "-retry", tempPdf, true, "retry", out exit2, out log2, out timeout2, out elapsed2))
                     {
-                        error = BuildFailure(timeout2, exit2, log2, log);
+                        error = BuildFailure(timeout2, exit2, log2, log, elapsed2);
+                        Diag.Write("失败：" + src + " -> " + dst + "  " + error);
                         return false;
                     }
                 }
@@ -1115,12 +1145,14 @@ namespace Html2Pdf
             }
         }
 
-        private bool RunPrint(string target, string profile, string tempPdf, bool minimal,
-            out int exitCode, out string log, out bool timeout)
+        private bool RunPrint(string target, string profile, string tempPdf, bool minimal, string round,
+            out int exitCode, out string log, out bool timeout, out long elapsedMs)
         {
             exitCode = 0;
             timeout = false;
             log = "";
+            elapsedMs = 0;
+            Stopwatch sw = Stopwatch.StartNew();
             try { Directory.CreateDirectory(profile); }
             catch { }
             try { if (File.Exists(tempPdf)) File.Delete(tempPdf); }
@@ -1162,20 +1194,29 @@ namespace Html2Pdf
                 {
                     try { p.Kill(); } catch { }
                     timeout = true;
+                    elapsedMs = sw.ElapsedMilliseconds;
+                    Diag.Write("[" + round + "] 超时 pid=" + p.Id + " 参数=" + args);
                     return false;
                 }
                 exitCode = p.ExitCode;
             }
+            elapsedMs = sw.ElapsedMilliseconds;
 
             log = Tail(buf.ToString(), 500);
+            bool ok;
+            long size = 0;
             try
             {
-                return File.Exists(tempPdf) && new FileInfo(tempPdf).Length > 0;
+                ok = File.Exists(tempPdf);
+                if (ok) size = new FileInfo(tempPdf).Length;
             }
-            catch { return false; }
+            catch { ok = false; }
+            Diag.Write("[" + round + "] exit=" + exitCode + " 用时=" + elapsedMs + "ms pdf=" + ok + " 大小=" + size
+                + " 浏览器=" + _txtBrowser.Text.Trim() + " 参数=" + args + (log.Length > 0 ? " stderr=" + log : ""));
+            return ok && size > 0;
         }
 
-        private string BuildFailure(bool timeout, int exitCode, string log, string firstLog)
+        private string BuildFailure(bool timeout, int exitCode, string log, string firstLog, long elapsedMs)
         {
             if (timeout)
             {
@@ -1187,6 +1228,13 @@ namespace Html2Pdf
             if (exitCode != 0)
             {
                 sb.Append(L.T("浏览器退出码 ", "Browser exit code ", "ブラウザ終了コード ", "브라우저 종료 코드 ")).Append(exitCode).Append("。 ");
+            }
+            else if (elapsedMs < 800)
+            {
+                sb.Append(L.T("浏览器启动后不到 1 秒就退出了，没有执行打印。多数是被安全软件拦截，或者浏览器安装不完整。",
+                    "The browser quit less than a second after start without printing. Most likely security software blocked it, or the browser install is broken.",
+                    "ブラウザが起動から 1 秒未満で終了し、印刷を実行していません。セキュリティソフトに遮断されたか、ブラウザのインストールが不完全な可能性が高いです。",
+                    "브라우저가 시작한 지 1초도 안 되어 종료되었고 인쇄를 실행하지 않았습니다. 보안 프로그램이 차단했거나 브라우저 설치가 불완전할 가능성이 큽니다。"));
             }
             else
             {
@@ -1207,6 +1255,12 @@ namespace Html2Pdf
             while (text.Contains(" |  | ")) text = text.Replace(" |  | ", " | ");
             if (text.Length > max) text = text.Substring(text.Length - max);
             return text;
+        }
+
+        private static string FileVersion(string path)
+        {
+            try { return FileVersionInfo.GetVersionInfo(path).FileVersion; }
+            catch { return "?"; }
         }
 
         private static bool CanWrite(string dir)
